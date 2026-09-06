@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Multi-Website Dashboard</title>
+  <style>
+    :root {
+      --bg: #111317;
+      --panel: #1b1f26;
+      --panel-2: #232832;
+      --border: #343b47;
+      --text: #f3f5f7;
+      --muted: #aeb7c4;
+      --accent: #4d8dff;
+      --danger: #d95050;
+      --toolbar-height: 118px;
+      --gap: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body.scroll-mode {
+      overflow: auto;
+    }
+
+    header {
+      height: var(--toolbar-height);
+      padding: 10px;
+      background: #0d0f12;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .top-row,
+    .bottom-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 14px 0 0;
+      white-space: nowrap;
+    }
+
+    .url-add {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+    }
+
+    .url-add:focus,
+    .panel-url:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    .primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      font-weight: 700;
+    }
+
+    .danger:hover {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: white;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 12px;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #dashboard {
+      width: 100%;
+      height: calc(100vh - var(--toolbar-height));
+      display: grid;
+      gap: var(--gap);
+      padding: var(--gap);
+      overflow: hidden;
+      align-items: stretch;
+    }
+
+    body.scroll-mode #dashboard {
+      height: auto;
+      min-height: calc(100vh - var(--toolbar-height));
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)) !important;
+      grid-template-rows: auto !important;
+      overflow: visible;
+    }
+
+    .browser-card {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    body.scroll-mode .browser-card {
+      height: 460px;
+    }
+
+    .browser-card.dragging {
+      opacity: 0.45;
+    }
+
+    .browser-head {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+      min-height: 42px;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      user-select: none;
+      color: var(--muted);
+      padding: 4px 5px;
+      font-size: 17px;
+    }
+
+    .panel-url {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 8px;
+      border: 1px solid var(--border);
+      background: #15181e;
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .small-btn {
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .frame-wrap {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: white;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: white;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 30px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      min-height: 180px;
+    }
+
+    .empty-state strong {
+      color: var(--text);
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .site-note {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 760px) {
+      :root { --toolbar-height: 166px; }
+
+      header {
+        padding: 8px;
+      }
+
+      .top-row {
+        flex-wrap: wrap;
+      }
+
+      h1 {
+        width: 100%;
+      }
+
+      .url-add {
+        flex-basis: calc(100% - 105px);
+      }
+
+      .bottom-row {
+        flex-wrap: wrap;
+      }
+
+      .status {
+        flex-basis: 100%;
+      }
+
+      body.scroll-mode #dashboard {
+        grid-template-columns: 1fr !important;
+      }
+
+      .small-btn .label {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="top-row">
+      <h1>Multi-Website Dashboard</h1>
+      <input
+        id="newUrl"
+        class="url-add"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Paste a website URL, e.g. https://www.wikipedia.org"
+      />
+      <button id="addBtn" class="primary">+ Add Website</button>
+    </div>
+
+    <div class="bottom-row">
+      <button id="modeBtn" title="Switch between fitting every website on one screen and larger scrollable panels">
+        Mode: Fit All
+      </button>
+      <button id="reloadAllBtn">Reload All</button>
+      <button id="clearBtn" class="danger">Clear All</button>
+      <div id="status" class="status">
+        Websites are saved automatically in this browser.
+      </div>
+      <div class="site-note">
+        Some websites block iframe embedding for security reasons.
+      </div>
+    </div>
+  </header>
+
+  <main id="dashboard"></main>
+
+  <script>
+    const STORAGE_KEY = "multiWebsiteDashboard.v1";
+    const MODE_KEY = "multiWebsiteDashboard.mode.v1";
+
+    const dashboard = document.getElementById("dashboard");
+    const newUrl = document.getElementById("newUrl");
+    const addBtn = document.getElementById("addBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const reloadAllBtn = document.getElementById("reloadAllBtn");
+    const modeBtn = document.getElementById("modeBtn");
+    const status = document.getElementById("status");
+
+    let sites = loadSites();
+    let displayMode = localStorage.getItem(MODE_KEY) || "fit";
+    let draggedId = null;
+
+    function makeId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    function normalizeUrl(value) {
+      let url = value.trim();
+      if (!url) return "";
+
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+      }
+
+      try {
+        return new URL(url).href;
+      } catch {
+        return "";
+      }
+    }
+
+    function displayName(url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return "Website";
+      }
+    }
+
+    function loadSites() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (Array.isArray(data)) {
+          return data
+            .filter(item => item && typeof item.url === "string")
+            .map(item => ({
+              id: item.id || makeId(),
+              url: item.url
+            }));
+        }
+      } catch (err) {
+        console.warn("Could not load saved websites:", err);
+      }
+      return [];
+    }
+
+    function saveSites() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+    }
+
+    function setStatus(message) {
+      status.textContent = message;
+    }
+
+    function addSite() {
+      const url = normalizeUrl(newUrl.value);
+
+      if (!url) {
+        setStatus("Please enter a valid website address.");
+        newUrl.focus();
+        return;
+      }
+
+      sites.push({
+        id: makeId(),
+        url
+      });
+
+      saveSites();
+      newUrl.value = "";
+      render();
+      setStatus(`${displayName(url)} added. ${sites.length} website${sites.length === 1 ? "" : "s"} on the dashboard.`);
+      newUrl.focus();
+    }
+
+    function removeSite(id) {
+      sites = sites.filter(site => site.id !== id);
+      saveSites();
+      render();
+      setStatus(`${sites.length} website${sites.length === 1 ? "" : "s"} remaining.`);
+    }
+
+    function updateSite(id, value) {
+      const url = normalizeUrl(value);
+
+      if (!url) {
+        setStatus("That website address is not valid.");
+        return;
+      }
+
+      const site = sites.find(site => site.id === id);
+      if (!site) return;
+
+      site.url = url;
+      saveSites();
+
+      const iframe = document.querySelector(`[data-frame-id="${CSS.escape(id)}"]`);
+      const input = document.querySelector(`[data-input-id="${CSS.escape(id)}"]`);
+
+      if (input) input.value = url;
+      if (iframe) iframe.src = url;
+
+      setStatus(`${displayName(url)} loaded.`);
+    }
+
+    function reloadSite(id) {
+      const iframe = document.querySelector(`[data-frame-id="${CSS.escape(id)}"]`);
+      if (!iframe) return;
+
+      const src = iframe.src;
+      iframe.src = "about:blank";
+      setTimeout(() => iframe.src = src, 25);
+    }
+
+    function openSite(url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    function fullscreenSite(id) {
+      const card = document.querySelector(`[data-card-id="${CSS.escape(id)}"]`);
+      if (!card) return;
+
+      if (card.requestFullscreen) {
+        card.requestFullscreen();
+      }
+    }
+
+    function reloadAll() {
+      sites.forEach(site => reloadSite(site.id));
+      setStatus("Reloaded all websites.");
+    }
+
+    function clearAll() {
+      if (!sites.length) return;
+      if (!confirm("Remove every website from the dashboard?")) return;
+
+      sites = [];
+      saveSites();
+      render();
+      setStatus("Dashboard cleared.");
+    }
+
+    function applyMode() {
+      document.body.classList.toggle("scroll-mode", displayMode === "scroll");
+      modeBtn.textContent = displayMode === "fit" ? "Mode: Fit All" : "Mode: Comfortable";
+      localStorage.setItem(MODE_KEY, displayMode);
+    }
+
+    function toggleMode() {
+      displayMode = displayMode === "fit" ? "scroll" : "fit";
+      applyMode();
+      updateGrid();
+    }
+
+    function updateGrid() {
+      if (displayMode !== "fit") return;
+
+      const n = sites.length;
+      if (!n) {
+        dashboard.style.gridTemplateColumns = "1fr";
+        dashboard.style.gridTemplateRows = "1fr";
+        return;
+      }
+
+      const width = Math.max(dashboard.clientWidth, 1);
+      const height = Math.max(dashboard.clientHeight, 1);
+      const aspect = width / height;
+
+      let cols = Math.ceil(Math.sqrt(n * aspect));
+      cols = Math.max(1, Math.min(cols, n));
+      let rows = Math.ceil(n / cols);
+
+      let bestCols = cols;
+      let bestScore = -Infinity;
+
+      for (let c = Math.max(1, cols - 2); c <= Math.min(n, cols + 2); c++) {
+        const r = Math.ceil(n / c);
+        const cellW = width / c;
+        const cellH = height / r;
+        const cellAspect = cellW / cellH;
+
+        const shapePenalty = Math.abs(Math.log(cellAspect / 1.45));
+        const emptyPenalty = (c * r - n) * 0.08;
+        const score = Math.log(Math.max(cellW * cellH, 1)) - shapePenalty - emptyPenalty;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCols = c;
+        }
+      }
+
+      cols = bestCols;
+      rows = Math.ceil(n / cols);
+
+      dashboard.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      dashboard.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+    }
+
+    function render() {
+      dashboard.innerHTML = "";
+
+      if (!sites.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.innerHTML = `
+          <div>
+            <strong>Add your first website</strong>
+            Paste an address above and click <b>Add Website</b>.<br><br>
+            Add 2, 4, 10, or more websites and the dashboard will automatically rearrange them.
+          </div>
+        `;
+        dashboard.appendChild(empty);
+        updateGrid();
+        return;
+      }
+
+      for (const site of sites) {
+        const card = document.createElement("section");
+        card.className = "browser-card";
+        card.dataset.cardId = site.id;
+        card.draggable = true;
+
+        const head = document.createElement("div");
+        head.className = "browser-head";
+
+        const handle = document.createElement("span");
+        handle.className = "drag-handle";
+        handle.textContent = "☷";
+        handle.title = "Drag to rearrange";
+
+        const input = document.createElement("input");
+        input.className = "panel-url";
+        input.value = site.url;
+        input.dataset.inputId = site.id;
+        input.spellcheck = false;
+        input.autocomplete = "off";
+        input.title = displayName(site.url);
+
+        const go = document.createElement("button");
+        go.className = "small-btn";
+        go.textContent = "Go";
+
+        const refresh = document.createElement("button");
+        refresh.className = "small-btn";
+        refresh.title = "Reload";
+        refresh.innerHTML = "↻";
+
+        const open = document.createElement("button");
+        open.className = "small-btn";
+        open.title = "Open in a new browser tab";
+        open.innerHTML = "↗";
+
+        const full = document.createElement("button");
+        full.className = "small-btn";
+        full.title = "Fullscreen this panel";
+        full.innerHTML = "⛶";
+
+        const remove = document.createElement("button");
+        remove.className = "small-btn danger";
+        remove.title = "Remove this website";
+        remove.innerHTML = "✕";
+
+        const wrap = document.createElement("div");
+        wrap.className = "frame-wrap";
+
+        const iframe = document.createElement("iframe");
+        iframe.src = site.url;
+        iframe.dataset.frameId = site.id;
+        iframe.loading = "eager";
+        iframe.referrerPolicy = "strict-origin-when-cross-origin";
+        iframe.allow = "fullscreen; clipboard-read; clipboard-write";
+
+        go.addEventListener("click", () => updateSite(site.id, input.value));
+        refresh.addEventListener("click", () => reloadSite(site.id));
+        open.addEventListener("click", () => openSite(site.url));
+        full.addEventListener("click", () => fullscreenSite(site.id));
+        remove.addEventListener("click", () => removeSite(site.id));
+
+        input.addEventListener("keydown", event => {
+          if (event.key === "Enter") updateSite(site.id, input.value);
+        });
+
+        card.addEventListener("dragstart", event => {
+          draggedId = site.id;
+          card.classList.add("dragging");
+          event.dataTransfer.effectAllowed = "move";
+        });
+
+        card.addEventListener("dragend", () => {
+          draggedId = null;
+          card.classList.remove("dragging");
+        });
+
+        card.addEventListener("dragover", event => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+        });
+
+        card.addEventListener("drop", event => {
+          event.preventDefault();
+          if (!draggedId || draggedId === site.id) return;
+
+          const from = sites.findIndex(item => item.id === draggedId);
+          const to = sites.findIndex(item => item.id === site.id);
+
+          if (from < 0 || to < 0) return;
+
+          const [moved] = sites.splice(from, 1);
+          sites.splice(to, 0, moved);
+          saveSites();
+          render();
+        });
+
+        head.append(handle, input, go, refresh, open, full, remove);
+        wrap.appendChild(iframe);
+        card.append(head, wrap);
+        dashboard.appendChild(card);
+      }
+
+      updateGrid();
+    }
+
+    addBtn.addEventListener("click", addSite);
+    clearBtn.addEventListener("click", clearAll);
+    reloadAllBtn.addEventListener("click", reloadAll);
+    modeBtn.addEventListener("click", toggleMode);
+
+    newUrl.addEventListener("keydown", event => {
+      if (event.key === "Enter") addSite();
+    });
+
+    window.addEventListener("resize", updateGrid);
+
+    applyMode();
+    render();
+  </script>
+</body>
+</html>
