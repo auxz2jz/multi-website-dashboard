@@ -355,7 +355,10 @@
       } catch (err) {
         console.warn("Could not load saved websites:", err);
       }
-      return [];
+      return [{
+        id: makeId(),
+        url: "https://www.twitch.tv/potasticp"
+      }];
     }
 
     function saveSites() {
@@ -421,6 +424,7 @@
       const iframe = document.querySelector(`[data-frame-id="${CSS.escape(id)}"]`);
       if (!iframe) return;
 
+      // Resetting src works without needing cross-origin frame access.
       const src = iframe.src;
       iframe.src = "about:blank";
       setTimeout(() => iframe.src = src, 25);
@@ -480,10 +484,13 @@
       const height = Math.max(dashboard.clientHeight, 1);
       const aspect = width / height;
 
+      // Choose a grid close to the viewport's shape.
       let cols = Math.ceil(Math.sqrt(n * aspect));
       cols = Math.max(1, Math.min(cols, n));
       let rows = Math.ceil(n / cols);
 
+      // Try neighboring column counts and choose the layout with
+      // the largest approximate panel area / usable shape.
       let bestCols = cols;
       let bestScore = -Infinity;
 
@@ -493,6 +500,7 @@
         const cellH = height / r;
         const cellAspect = cellW / cellH;
 
+        // Favor useful browser-shaped panels, but still fit everything.
         const shapePenalty = Math.abs(Math.log(cellAspect / 1.45));
         const emptyPenalty = (c * r - n) * 0.08;
         const score = Math.log(Math.max(cellW * cellH, 1)) - shapePenalty - emptyPenalty;
