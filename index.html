@@ -227,6 +227,26 @@
       color: var(--muted);
     }
 
+    .embed-message {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      background: #0e0f12;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .embed-message strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
     @media (max-width: 760px) {
       :root { --toolbar-height: 166px; }
 
@@ -290,7 +310,7 @@
         Websites are saved automatically in this browser.
       </div>
       <div class="site-note">
-        Some websites block iframe embedding for security reasons.
+        Twitch channel links are converted automatically to Twitch's embedded player. Other sites may block iframe embedding.
       </div>
     </div>
   </header>
@@ -333,7 +353,44 @@
       }
     }
 
+    function getTwitchChannel(url) {
+      try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+        if (host !== "twitch.tv" && host !== "m.twitch.tv") return "";
+
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (!parts.length) return "";
+
+        const reserved = new Set([
+          "directory", "downloads", "jobs", "p", "search", "settings",
+          "subscriptions", "turbo", "videos", "wallet"
+        ]);
+
+        const channel = parts[0].toLowerCase();
+        if (reserved.has(channel)) return "";
+        if (!/^[a-z0-9_]{1,25}$/i.test(channel)) return "";
+        return channel;
+      } catch {
+        return "";
+      }
+    }
+
+    function getEmbedUrl(url) {
+      const channel = getTwitchChannel(url);
+      if (!channel) return url;
+
+      const isWebHosted = window.location.protocol === "http:" || window.location.protocol === "https:";
+      if (!isWebHosted || !window.location.hostname) return "";
+
+      const parent = encodeURIComponent(window.location.hostname);
+      return `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${parent}&autoplay=false`;
+    }
+
     function displayName(url) {
+      const twitchChannel = getTwitchChannel(url);
+      if (twitchChannel) return `Twitch: ${twitchChannel}`;
+
       try {
         return new URL(url).hostname.replace(/^www\./, "");
       } catch {
@@ -415,7 +472,10 @@
       const input = document.querySelector(`[data-input-id="${CSS.escape(id)}"]`);
 
       if (input) input.value = url;
-      if (iframe) iframe.src = url;
+      if (iframe) {
+        const embedUrl = getEmbedUrl(url);
+        iframe.src = embedUrl || "about:blank";
+      }
 
       setStatus(`${displayName(url)} loaded.`);
     }
@@ -586,11 +646,27 @@
         wrap.className = "frame-wrap";
 
         const iframe = document.createElement("iframe");
-        iframe.src = site.url;
+        const embedUrl = getEmbedUrl(site.url);
+        iframe.src = embedUrl || "about:blank";
         iframe.dataset.frameId = site.id;
         iframe.loading = "eager";
         iframe.referrerPolicy = "strict-origin-when-cross-origin";
-        iframe.allow = "fullscreen; clipboard-read; clipboard-write";
+        iframe.allow = "autoplay; fullscreen; clipboard-read; clipboard-write";
+        iframe.allowFullscreen = true;
+
+        const twitchChannel = getTwitchChannel(site.url);
+        let embedMessage = null;
+        if (twitchChannel && !embedUrl) {
+          embedMessage = document.createElement("div");
+          embedMessage.className = "embed-message";
+          embedMessage.innerHTML = `
+            <div>
+              <strong>Twitch needs the dashboard to be web-hosted</strong>
+              This Twitch stream can play here once the dashboard is opened from an HTTP/HTTPS address, such as GitHub Pages.<br><br>
+              The ↗ button above will still open the channel directly.
+            </div>
+          `;
+        }
 
         go.addEventListener("click", () => updateSite(site.id, input.value));
         refresh.addEventListener("click", () => reloadSite(site.id));
@@ -635,6 +711,7 @@
 
         head.append(handle, input, go, refresh, open, full, remove);
         wrap.appendChild(iframe);
+        if (embedMessage) wrap.appendChild(embedMessage);
         card.append(head, wrap);
         dashboard.appendChild(card);
       }
